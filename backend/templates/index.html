@@ -1,148 +1,996 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <title>Credify AI</title>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Credify AI — Credit Risk Analyzer</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=IBM+Plex+Mono:wght@300;400;500&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg:        #0a0c10;
+    --surface:   #111318;
+    --surface2:  #181c24;
+    --border:    #1e2330;
+    --gold:      #c9a84c;
+    --gold-soft: #e8c97a;
+    --gold-dim:  rgba(201,168,76,0.12);
+    --green:     #2dce89;
+    --green-dim: rgba(45,206,137,0.12);
+    --red:       #f75f6c;
+    --red-dim:   rgba(247,95,108,0.12);
+    --blue:      #4da6ff;
+    --text:      #e8eaf0;
+    --muted:     #6b7280;
+    --muted2:    #9ca3af;
+    --ff-serif:  'Playfair Display', Georgia, serif;
+    --ff-mono:   'IBM Plex Mono', monospace;
+    --ff-sans:   'DM Sans', sans-serif;
+  }
 
-  <style>
-    body {
-      background: #0b0f19;
-      color: #fff;
-      font-family: Arial;
-      padding: 30px;
-    }
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
-    input, select {
-      padding: 10px;
-      margin: 8px;
-      width: 250px;
-    }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--ff-sans);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
 
-    button {
-      padding: 12px 20px;
-      background: gold;
-      border: none;
-      cursor: pointer;
-      margin-top: 10px;
-    }
+  /* ── Background texture ── */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background:
+      radial-gradient(ellipse 80% 50% at 20% 10%, rgba(201,168,76,0.04) 0%, transparent 60%),
+      radial-gradient(ellipse 60% 40% at 80% 80%, rgba(77,166,255,0.03) 0%, transparent 50%);
+    pointer-events: none;
+    z-index: 0;
+  }
 
-    .card {
-      background: #121826;
-      padding: 20px;
-      border-radius: 10px;
-      margin-top: 20px;
-    }
+  .container { max-width: 1100px; margin: 0 auto; padding: 0 24px; position: relative; z-index: 1; }
 
-    .error {
-      color: red;
-    }
+  /* ── Header ── */
+  header {
+    border-bottom: 1px solid var(--border);
+    padding: 20px 0;
+    position: sticky;
+    top: 0;
+    background: rgba(10,12,16,0.92);
+    backdrop-filter: blur(12px);
+    z-index: 100;
+  }
 
-    .online { color: lightgreen; }
-    .offline { color: red; }
-  </style>
+  .header-inner {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .logo {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .logo-mark {
+    width: 32px; height: 32px;
+    border: 1.5px solid var(--gold);
+    border-radius: 6px;
+    display: flex; align-items: center; justify-content: center;
+    font-family: var(--ff-serif);
+    font-size: 15px;
+    color: var(--gold);
+    letter-spacing: -1px;
+  }
+
+  .logo-text {
+    font-family: var(--ff-serif);
+    font-size: 20px;
+    color: var(--text);
+    letter-spacing: 0.02em;
+  }
+
+  .logo-text span { color: var(--gold); }
+
+  .status-pill {
+    display: flex; align-items: center; gap: 6px;
+    font-family: var(--ff-mono);
+    font-size: 11px;
+    color: var(--muted2);
+    background: var(--surface);
+    border: 1px solid var(--border);
+    padding: 5px 12px;
+    border-radius: 20px;
+  }
+
+  .status-dot {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: var(--muted);
+    transition: background 0.3s;
+  }
+  .status-dot.online { background: var(--green); box-shadow: 0 0 6px var(--green); }
+
+  /* ── Hero ── */
+  .hero {
+    text-align: center;
+    padding: 64px 0 48px;
+  }
+
+  .hero-eyebrow {
+    font-family: var(--ff-mono);
+    font-size: 11px;
+    letter-spacing: 0.2em;
+    color: var(--gold);
+    text-transform: uppercase;
+    margin-bottom: 16px;
+  }
+
+  .hero h1 {
+    font-family: var(--ff-serif);
+    font-size: clamp(32px, 5vw, 52px);
+    font-weight: 700;
+    line-height: 1.15;
+    color: var(--text);
+    margin-bottom: 16px;
+  }
+
+  .hero h1 em {
+    font-style: italic;
+    color: var(--gold-soft);
+  }
+
+  .hero-sub {
+    font-size: 15px;
+    color: var(--muted2);
+    max-width: 520px;
+    margin: 0 auto 36px;
+    line-height: 1.7;
+    font-weight: 300;
+  }
+
+  /* ── Demo buttons ── */
+  .demo-strip {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    margin-bottom: 48px;
+    flex-wrap: wrap;
+  }
+
+  .demo-label {
+    font-family: var(--ff-mono);
+    font-size: 10px;
+    letter-spacing: 0.15em;
+    color: var(--muted);
+    text-transform: uppercase;
+  }
+
+  .demo-btn {
+    display: flex; align-items: center; gap: 6px;
+    padding: 8px 18px;
+    border-radius: 6px;
+    font-family: var(--ff-sans);
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    border: 1px solid;
+    transition: all 0.2s;
+    background: transparent;
+  }
+
+  .demo-btn.good {
+    border-color: rgba(45,206,137,0.4);
+    color: var(--green);
+  }
+  .demo-btn.good:hover {
+    background: var(--green-dim);
+    border-color: var(--green);
+  }
+
+  .demo-btn.risky {
+    border-color: rgba(247,95,108,0.4);
+    color: var(--red);
+  }
+  .demo-btn.risky:hover {
+    background: var(--red-dim);
+    border-color: var(--red);
+  }
+
+  /* ── Main layout ── */
+  .main-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 24px;
+    align-items: start;
+    padding-bottom: 80px;
+  }
+
+  @media (max-width: 768px) {
+    .main-grid { grid-template-columns: 1fr; }
+  }
+
+  /* ── Card ── */
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    overflow: hidden;
+  }
+
+  .card-header {
+    padding: 18px 24px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .card-title {
+    font-family: var(--ff-mono);
+    font-size: 11px;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--muted2);
+  }
+
+  .card-body { padding: 24px; }
+
+  /* ── Form ── */
+  .form-grid {
+    display: grid;
+    gap: 16px;
+  }
+
+  .field {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .field label {
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--muted2);
+    letter-spacing: 0.04em;
+  }
+
+  .field input, .field select {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    color: var(--text);
+    font-family: var(--ff-sans);
+    font-size: 14px;
+    padding: 10px 14px;
+    outline: none;
+    transition: border-color 0.2s, box-shadow 0.2s;
+    width: 100%;
+    appearance: none;
+  }
+
+  .field input:focus, .field select:focus {
+    border-color: var(--gold);
+    box-shadow: 0 0 0 3px rgba(201,168,76,0.1);
+  }
+
+  .field select {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%236b7280' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 14px center;
+    padding-right: 36px;
+    cursor: pointer;
+  }
+
+  .field select option { background: var(--surface2); }
+
+  .field-hint {
+    font-size: 11px;
+    color: var(--muted);
+    font-weight: 300;
+  }
+
+  .two-col { grid-template-columns: 1fr 1fr; display: grid; gap: 16px; }
+
+  /* ── Submit button ── */
+  .submit-btn {
+    width: 100%;
+    padding: 14px;
+    background: var(--gold);
+    border: none;
+    border-radius: 8px;
+    color: #0a0c10;
+    font-family: var(--ff-sans);
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    margin-top: 8px;
+    letter-spacing: 0.04em;
+    transition: all 0.2s;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .submit-btn:hover {
+    background: var(--gold-soft);
+    transform: translateY(-1px);
+    box-shadow: 0 8px 24px rgba(201,168,76,0.25);
+  }
+
+  .submit-btn:active { transform: translateY(0); }
+
+  .submit-btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    transform: none;
+  }
+
+  .btn-inner { display: flex; align-items: center; justify-content: center; gap: 8px; }
+
+  /* ── Spinner ── */
+  .spinner {
+    width: 14px; height: 14px;
+    border: 2px solid rgba(10,12,16,0.3);
+    border-top-color: #0a0c10;
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+    display: none;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* ── Result panel ── */
+  .result-panel { display: none; }
+  .result-panel.visible { display: block; animation: fadeUp 0.4s ease; }
+  @keyframes fadeUp { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
+
+  /* ── Decision banner ── */
+  .decision-banner {
+    border-radius: 10px;
+    padding: 24px;
+    margin-bottom: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 16px;
+  }
+
+  .decision-banner.approved {
+    background: var(--green-dim);
+    border: 1px solid rgba(45,206,137,0.25);
+  }
+
+  .decision-banner.rejected {
+    background: var(--red-dim);
+    border: 1px solid rgba(247,95,108,0.25);
+  }
+
+  .decision-left {}
+
+  .decision-verdict {
+    font-family: var(--ff-serif);
+    font-size: 28px;
+    font-weight: 700;
+    margin-bottom: 4px;
+  }
+  .approved .decision-verdict { color: var(--green); }
+  .rejected .decision-verdict { color: var(--red); }
+
+  .decision-conf {
+    font-family: var(--ff-mono);
+    font-size: 12px;
+    color: var(--muted2);
+  }
+
+  .decision-score-wrap { text-align: right; }
+
+  .score-num {
+    font-family: var(--ff-mono);
+    font-size: 36px;
+    font-weight: 500;
+    line-height: 1;
+  }
+  .approved .score-num { color: var(--green); }
+  .rejected .score-num { color: var(--red); }
+
+  .score-label-text {
+    font-size: 11px;
+    color: var(--muted);
+    margin-top: 4px;
+    font-family: var(--ff-mono);
+    letter-spacing: 0.08em;
+  }
+
+  /* ── Stats row ── */
+  .stats-row {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+    margin-bottom: 20px;
+  }
+
+  .stat-box {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 14px;
+    text-align: center;
+  }
+
+  .stat-value {
+    font-family: var(--ff-mono);
+    font-size: 18px;
+    font-weight: 500;
+    color: var(--gold-soft);
+    margin-bottom: 4px;
+  }
+
+  .stat-name {
+    font-size: 10px;
+    color: var(--muted);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+  }
+
+  /* ── Section heading ── */
+  .section-heading {
+    font-family: var(--ff-mono);
+    font-size: 10px;
+    letter-spacing: 0.18em;
+    color: var(--muted);
+    text-transform: uppercase;
+    margin-bottom: 12px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  /* ── Explanations ── */
+  .explanation-list { display: flex; flex-direction: column; gap: 8px; margin-bottom: 20px; }
+
+  .explanation-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 10px 12px;
+    border-radius: 7px;
+    font-size: 13px;
+    line-height: 1.5;
+  }
+
+  .explanation-item.positive { background: var(--green-dim); }
+  .explanation-item.negative { background: var(--red-dim); }
+
+  .exp-icon { font-size: 14px; flex-shrink: 0; margin-top: 1px; }
+  .exp-text { color: var(--muted2); }
+  .exp-badge {
+    margin-left: auto;
+    font-family: var(--ff-mono);
+    font-size: 10px;
+    padding: 2px 7px;
+    border-radius: 4px;
+    flex-shrink: 0;
+  }
+
+  .positive .exp-badge { background: rgba(45,206,137,0.15); color: var(--green); }
+  .negative .exp-badge { background: rgba(247,95,108,0.15); color: var(--red); }
+
+  /* ── Improvements ── */
+  .improvement-list { display: flex; flex-direction: column; gap: 8px; }
+
+  .improvement-item {
+    padding: 10px 12px;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 7px;
+    font-size: 13px;
+    color: var(--muted2);
+    line-height: 1.5;
+  }
+
+  /* ── CIBIL note ── */
+  .cibil-note {
+    margin-top: 20px;
+    padding: 12px 14px;
+    background: var(--gold-dim);
+    border: 1px solid rgba(201,168,76,0.2);
+    border-radius: 7px;
+    font-size: 12px;
+    color: var(--muted2);
+    line-height: 1.6;
+    font-style: italic;
+  }
+
+  .cibil-note strong { color: var(--gold); font-style: normal; }
+
+  /* ── Placeholder state ── */
+  .placeholder-state {
+    padding: 60px 24px;
+    text-align: center;
+  }
+
+  .placeholder-icon {
+    font-size: 40px;
+    margin-bottom: 16px;
+    opacity: 0.4;
+  }
+
+  .placeholder-text {
+    font-size: 14px;
+    color: var(--muted);
+    line-height: 1.6;
+    font-weight: 300;
+  }
+
+  /* ── Error state ── */
+  .error-box {
+    background: var(--red-dim);
+    border: 1px solid rgba(247,95,108,0.25);
+    border-radius: 8px;
+    padding: 14px 16px;
+    font-size: 13px;
+    color: var(--red);
+    margin-bottom: 16px;
+    display: none;
+  }
+
+  /* ── Footer ── */
+  footer {
+    border-top: 1px solid var(--border);
+    padding: 24px 0;
+    text-align: center;
+    font-size: 12px;
+    color: var(--muted);
+    font-family: var(--ff-mono);
+  }
+
+  footer span { color: var(--gold); }
+
+  /* ── Score gauge ── */
+  .gauge-wrap { margin-bottom: 20px; }
+
+  .gauge-bar-bg {
+    height: 6px;
+    background: var(--surface2);
+    border-radius: 3px;
+    overflow: hidden;
+    margin-bottom: 6px;
+  }
+
+  .gauge-bar-fill {
+    height: 100%;
+    border-radius: 3px;
+    transition: width 0.8s cubic-bezier(0.4,0,0.2,1);
+    background: linear-gradient(90deg, var(--red), #f59e0b, var(--green));
+  }
+
+  .gauge-labels {
+    display: flex;
+    justify-content: space-between;
+    font-family: var(--ff-mono);
+    font-size: 9px;
+    color: var(--muted);
+    letter-spacing: 0.08em;
+  }
+</style>
 </head>
-
 <body>
 
-<h1>Credify AI 🚀</h1>
-<p id="statusText" class="offline">API Offline</p>
+<!-- ── Header ── -->
+<header>
+  <div class="container">
+    <div class="header-inner">
+      <div class="logo">
+        <div class="logo-mark">C</div>
+        <div class="logo-text">Credify <span>AI</span></div>
+      </div>
+      <div class="status-pill">
+        <div class="status-dot" id="statusDot"></div>
+        <span id="statusText">Connecting...</span>
+      </div>
+    </div>
+  </div>
+</header>
 
-<div class="card">
-  <h2>Applicant Details</h2>
+<!-- ── Hero ── -->
+<div class="container">
+  <div class="hero">
+    <div class="hero-eyebrow">AI-Powered Credit Analysis</div>
+    <h1>Know Your Loan<br/><em>Eligibility Instantly</em></h1>
+    <p class="hero-sub">
+      Fill in 7 simple fields. Our Random Forest model — trained on 36,000+ real bank records — analyses your credit risk in milliseconds.
+    </p>
 
-  <input id="AGE" placeholder="Age" value="35"><br>
-  <input id="YEARS_EMPLOYED" placeholder="Years Employed" value="5"><br>
-  <input id="AMT_INCOME_TOTAL" placeholder="Income" value="450000"><br>
+    <div class="demo-strip">
+      <span class="demo-label">Try a demo →</span>
+      <button class="demo-btn good" onclick="loadDemo('good')">
+        ✦ Strong Profile
+      </button>
+      <button class="demo-btn risky" onclick="loadDemo('risky')">
+        ⚠ Risky Profile
+      </button>
+    </div>
+  </div>
 
-  <select id="EMPLOYMENT_TYPE">
-    <option>Salaried</option>
-    <option>Self-Employed</option>
-    <option>Student</option>
-    <option>Government</option>
-  </select><br>
+  <!-- ── Main grid ── -->
+  <div class="main-grid">
 
-  <select id="FLAG_OWN_REALTY">
-    <option value="Y">Own Property</option>
-    <option value="N">No Property</option>
-  </select><br>
+    <!-- Left: Form -->
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">Applicant Details</span>
+        <span style="font-family:var(--ff-mono);font-size:10px;color:var(--muted)">7 fields</span>
+      </div>
+      <div class="card-body">
+        <div id="errorBox" class="error-box"></div>
 
-  <input id="CNT_FAM_MEMBERS" placeholder="Family Members" value="3"><br>
-  <input id="CNT_CHILDREN" placeholder="Children" value="1"><br>
+        <form id="loanForm" onsubmit="submitForm(event)">
+          <div class="form-grid">
 
-  <button onclick="submitForm()">Analyse My Profile</button>
+            <!-- AGE + YEARS_EMPLOYED -->
+            <div class="two-col">
+              <div class="field">
+                <label>Age</label>
+                <input type="number" id="AGE" min="18" max="70" placeholder="e.g. 35" required/>
+                <span class="field-hint">18 – 70 years</span>
+              </div>
+              <div class="field">
+                <label>Years Employed</label>
+                <input type="number" id="YEARS_EMPLOYED" min="0" max="50" step="0.5" placeholder="e.g. 5" required/>
+                <span class="field-hint">In current job</span>
+              </div>
+            </div>
 
-  <p class="error" id="errorBox"></p>
+            <!-- Annual income -->
+            <div class="field">
+              <label>Annual Income (₹)</label>
+              <input type="number" id="AMT_INCOME_TOTAL" min="0" placeholder="e.g. 450000" required/>
+              <span class="field-hint">Total yearly income before tax</span>
+            </div>
+
+            <!-- Employment type -->
+            <div class="field">
+              <label>Employment Type</label>
+              <select id="EMPLOYMENT_TYPE" required>
+                <option value="" disabled selected>Select employment type</option>
+              </select>
+              <span class="field-hint">Your current employment situation</span>
+            </div>
+
+            <!-- Own property -->
+            <div class="field">
+              <label>Do you own a property?</label>
+              <select id="FLAG_OWN_REALTY" required>
+                <option value="" disabled selected>Select ownership</option>
+                <option value="Y">Yes — I own a house / flat</option>
+                <option value="N">No — I don't own property</option>
+              </select>
+              <span class="field-hint">House, flat, or any real estate in your name</span>
+            </div>
+
+            <!-- Family + Children -->
+            <div class="two-col">
+              <div class="field">
+                <label>Family Members</label>
+                <input type="number" id="CNT_FAM_MEMBERS" min="1" max="20" placeholder="e.g. 3" required/>
+                <span class="field-hint">Total in household</span>
+              </div>
+              <div class="field">
+                <label>Children</label>
+                <input type="number" id="CNT_CHILDREN" min="0" max="19" placeholder="e.g. 1" required/>
+                <span class="field-hint">Dependent children</span>
+              </div>
+            </div>
+
+            <!-- Submit -->
+            <button type="submit" class="submit-btn" id="submitBtn">
+              <div class="btn-inner">
+                <div class="spinner" id="spinner"></div>
+                <span id="btnText">Analyse My Profile</span>
+              </div>
+            </button>
+
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- Right: Result -->
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">Analysis Result</span>
+        <span style="font-family:var(--ff-mono);font-size:10px;color:var(--muted)" id="resultTag">—</span>
+      </div>
+      <div class="card-body" id="resultBody">
+
+        <!-- Placeholder -->
+        <div class="placeholder-state" id="placeholder">
+          <div class="placeholder-icon">⬡</div>
+          <p class="placeholder-text">
+            Fill in the form on the left and click<br/>
+            <strong style="color:var(--gold)">Analyse My Profile</strong><br/>
+            to see your credit assessment here.
+          </p>
+        </div>
+
+        <!-- Result (hidden until prediction) -->
+        <div class="result-panel" id="resultPanel">
+
+          <!-- Decision banner -->
+          <div class="decision-banner" id="decisionBanner">
+            <div class="decision-left">
+              <div class="decision-verdict" id="decisionVerdict">—</div>
+              <div class="decision-conf" id="decisionConf">—</div>
+            </div>
+            <div class="decision-score-wrap">
+              <div class="score-num" id="creditScoreNum">—</div>
+              <div class="score-label-text" id="creditScoreLabel">CREDIT SCORE</div>
+            </div>
+          </div>
+
+          <!-- Score gauge -->
+          <div class="gauge-wrap">
+            <div class="gauge-bar-bg">
+              <div class="gauge-bar-fill" id="gaugeBar" style="width:0%"></div>
+            </div>
+            <div class="gauge-labels">
+              <span>300 · Poor</span>
+              <span>600 · Average</span>
+              <span>750 · Good</span>
+              <span>900 · Excellent</span>
+            </div>
+          </div>
+
+          <!-- Stats row -->
+          <div class="stats-row">
+            <div class="stat-box">
+              <div class="stat-value" id="statRisk">—</div>
+              <div class="stat-name">Risk Score</div>
+            </div>
+            <div class="stat-box">
+              <div class="stat-value" id="statRate">—</div>
+              <div class="stat-name">Est. Rate</div>
+            </div>
+            <div class="stat-box">
+              <div class="stat-value" id="statLevel">—</div>
+              <div class="stat-name">Risk Level</div>
+            </div>
+          </div>
+
+          <!-- Top factors -->
+          <div class="section-heading">Top Factors</div>
+          <div class="explanation-list" id="explanationList"></div>
+
+          <!-- Improvements -->
+          <div class="section-heading">Recommendations</div>
+          <div class="improvement-list" id="improvementList"></div>
+
+          <!-- CIBIL note -->
+          <div class="cibil-note" id="cibilNote"></div>
+
+        </div>
+      </div>
+    </div>
+
+  </div>
 </div>
 
-<div class="card" id="result">
-  <h2>Result will appear here</h2>
-</div>
+<!-- ── Footer ── -->
+<footer>
+  <div class="container">
+    Credify <span>AI</span> · B.Tech Portfolio Project · Powered by Random Forest + SHAP
+  </div>
+</footer>
 
 <script>
+fetch('/api/predict')
 
-// ✅ FIXED API BASE (IMPORTANT)
-const API = "";
-
-// 🔍 Health check
+// ── Check server health on load ──────────────────────────────────
 async function checkHealth() {
   try {
-    const res = await fetch("/api/health");
-    if (res.ok) {
-      document.getElementById("statusText").innerText = "API Online";
-      document.getElementById("statusText").className = "online";
+    const r = await fetch('/api/health');
+    if (r.ok) {
+      document.getElementById('statusDot').classList.add('online');
+      document.getElementById('statusText').textContent = 'API Online';
     }
   } catch {
-    document.getElementById("statusText").innerText = "API Offline";
-    document.getElementById("statusText").className = "offline";
+    document.getElementById('statusText').textContent = 'API Offline';
   }
 }
 
-// 🚀 Submit form
-async function submitForm() {
+// ── Load employment options from API ────────────────────────────
+async function loadFeatures() {
+  try {
+    const r = await fetch('/api/features');
+    const data = await r.json();
+    const sel = document.getElementById('EMPLOYMENT_TYPE');
+    const opts = data.categorical?.EMPLOYMENT_TYPE || [];
+    opts.forEach(opt => {
+      const o = document.createElement('option');
+      o.value = opt; o.textContent = opt;
+      sel.appendChild(o);
+    });
+  } catch {
+    // fallback options if API offline
+    ['Government','Pensioner','Salaried','Self-Employed','Student'].forEach(opt => {
+      const o = document.createElement('option');
+      o.value = opt; o.textContent = opt;
+      document.getElementById('EMPLOYMENT_TYPE').appendChild(o);
+    });
+  }
+}
 
-  document.getElementById("errorBox").innerText = "";
+// ── Load demo profile ────────────────────────────────────────────
+async function loadDemo(profile) {
+  setLoading(true);
+  showError('');
+  try {
+    const r = await fetch('/api/demo/${profile}');
+    const data = await r.json();
+    if (!r.ok) throw new Error(data.error || 'Demo failed');
+
+    // Fill form with demo input values
+    const inp = data.input;
+    if (inp) {
+      setValue('AGE', inp.AGE);
+      setValue('AMT_INCOME_TOTAL', inp.AMT_INCOME_TOTAL);
+      setValue('YEARS_EMPLOYED', inp.YEARS_EMPLOYED);
+      setValue('EMPLOYMENT_TYPE', inp.EMPLOYMENT_TYPE);
+      setValue('FLAG_OWN_REALTY', inp.FLAG_OWN_REALTY);
+      setValue('CNT_FAM_MEMBERS', inp.CNT_FAM_MEMBERS);
+      setValue('CNT_CHILDREN', inp.CNT_CHILDREN);
+    }
+    renderResult(data);
+  } catch (e) {
+    showError('Could not load demo: ' + e.message);
+  } finally {
+    setLoading(false);
+  }
+}
+
+// ── Submit form ──────────────────────────────────────────────────
+async function submitForm(e) {
+  e.preventDefault();
+  setLoading(true);
+  showError('');
 
   const payload = {
-    AGE: parseInt(document.getElementById("AGE").value),
-    YEARS_EMPLOYED: parseFloat(document.getElementById("YEARS_EMPLOYED").value),
-    AMT_INCOME_TOTAL: parseFloat(document.getElementById("AMT_INCOME_TOTAL").value),
-    EMPLOYMENT_TYPE: document.getElementById("EMPLOYMENT_TYPE").value,
-    FLAG_OWN_REALTY: document.getElementById("FLAG_OWN_REALTY").value,
-    CNT_FAM_MEMBERS: parseInt(document.getElementById("CNT_FAM_MEMBERS").value),
-    CNT_CHILDREN: parseInt(document.getElementById("CNT_CHILDREN").value)
+    AGE:              parseInt(document.getElementById('AGE').value),
+    AMT_INCOME_TOTAL: parseFloat(document.getElementById('AMT_INCOME_TOTAL').value),
+    YEARS_EMPLOYED:   parseFloat(document.getElementById('YEARS_EMPLOYED').value),
+    EMPLOYMENT_TYPE:  document.getElementById('EMPLOYMENT_TYPE').value,
+    FLAG_OWN_REALTY:  document.getElementById('FLAG_OWN_REALTY').value,
+    CNT_FAM_MEMBERS:  parseInt(document.getElementById('CNT_FAM_MEMBERS').value),
+    CNT_CHILDREN:     parseInt(document.getElementById('CNT_CHILDREN').value),
   };
 
   try {
-    const res = await fetch("/api/predict", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify(payload)
+    const r = await fetch('/api/predict', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
     });
 
-    const data = await res.json();
+    // 🔥 SAFE PARSING
+    const text = await r.text();
 
-    if (!res.ok) throw new Error(data.error);
+    let data;
+    try {
+      data = JSON.parse(text);
+    } catch {
+      throw new Error("Server returned HTML instead of JSON");
+    }
 
-    document.getElementById("result").innerHTML = `
-      <h2>${data.decision}</h2>
-      <p>Confidence: ${data.confidence}%</p>
-      <p>Risk Score: ${data.risk_score}</p>
-      <p>Credit Score: ${data.credit_score}</p>
-      <p>Risk Level: ${data.risk_level}</p>
-      <p>Interest Rate: ${data.interest_rate}%</p>
-    `;
+    if (!r.ok) {
+      throw new Error(data.error || JSON.stringify(data.details));
+    }
+
+    renderResult(data);
 
   } catch (err) {
-    document.getElementById("errorBox").innerText = "Error: " + err.message;
+    showError('Error: ' + err.message);
+  } finally {
+    setLoading(false);
+  }
+}
+// ── Render result ─────────────────────────────────────────────────
+function renderResult(data) {
+  const approved = data.decision === 'Approved';
+
+  // Show panel
+  document.getElementById('placeholder').style.display = 'none';
+  const panel = document.getElementById('resultPanel');
+  panel.classList.remove('visible');
+  void panel.offsetWidth; // trigger reflow for animation
+  panel.classList.add('visible');
+
+  // Tag
+  document.getElementById('resultTag').textContent =
+    new Date().toLocaleTimeString();
+
+  // Decision banner
+  const banner = document.getElementById('decisionBanner');
+  banner.className = 'decision-banner ' + (approved ? 'approved' : 'rejected');
+  document.getElementById('decisionVerdict').textContent =
+    approved ? '✓ Approved' : '✗ Rejected';
+  document.getElementById('decisionConf').textContent =
+    `${data.confidence}% confidence · ${data.score_label || ''}`;
+
+  // Credit score
+  const score = data.credit_score || 0;
+  document.getElementById('creditScoreNum').textContent = score;
+  document.getElementById('creditScoreLabel').textContent =
+    (data.score_label || 'CREDIT SCORE').toUpperCase();
+
+  // Gauge
+  const pct = Math.max(0, Math.min(100, ((score - 300) / 600) * 100));
+  document.getElementById('gaugeBar').style.width = pct + '%';
+
+  // Stats
+  document.getElementById('statRisk').textContent  = (data.risk_score || 0).toFixed(1) + '%';
+  document.getElementById('statRate').textContent  = (data.interest_rate || 0) + '%';
+  document.getElementById('statLevel').textContent = data.risk_level || '—';
+
+  // Explanations
+  const expList = document.getElementById('explanationList');
+  expList.innerHTML = '';
+  (data.explanations || []).forEach(ex => {
+    const positive = ex.direction === 'positive';
+    const div = document.createElement('div');
+    div.className = 'explanation-item ' + (positive ? 'positive' : 'negative');
+    div.innerHTML = `
+      <span class="exp-icon">${positive ? '✓' : '⚠'}</span>
+      <span class="exp-text">${ex.text || ex.feature}</span>
+      <span class="exp-badge">${(ex.impact || '').toUpperCase()}</span>
+    `;
+    expList.appendChild(div);
+  });
+
+  // Improvements
+  const impList = document.getElementById('improvementList');
+  impList.innerHTML = '';
+  (data.improvements || []).forEach(tip => {
+    const div = document.createElement('div');
+    div.className = 'improvement-item';
+    div.textContent = tip;
+    impList.appendChild(div);
+  });
+
+  // CIBIL note
+  if (data.cibil_note) {
+    const note = document.getElementById('cibilNote');
+    note.innerHTML = `<strong>ℹ Production note:</strong> ${data.cibil_note}`;
+    note.style.display = 'block';
   }
 }
 
-// 🔄 Run on load
+// ── Helpers ────────────────────────────────────────────────────────
+function setLoading(on) {
+  const btn = document.getElementById('submitBtn');
+  const spinner = document.getElementById('spinner');
+  const txt = document.getElementById('btnText');
+  btn.disabled = on;
+  spinner.style.display = on ? 'block' : 'none';
+  txt.textContent = on ? 'Analysing...' : 'Analyse My Profile';
+}
+
+function showError(msg) {
+  const box = document.getElementById('errorBox');
+  box.textContent = msg;
+  box.style.display = msg ? 'block' : 'none';
+}
+
+function setValue(id, val) {
+  const el = document.getElementById(id);
+  if (el) el.value = val;
+}
+
+// ── Init ────────────────────────────────────────────────────────────
 checkHealth();
-
+loadFeatures();
 </script>
-
 </body>
 </html>

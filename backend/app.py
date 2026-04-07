@@ -179,27 +179,30 @@ def health():
 
 @app.route('/api/predict', methods=['POST'])
 def predict():
-    raw = request.json
-    X = encode_input(raw)
+    try:
+        raw = request.json
 
-    proba = MODEL.predict_proba(X)[0]
-    risk_prob = proba[1]
+        X = encode_input(raw)
+        proba = MODEL.predict_proba(X)[0]
+        risk_prob = proba[1]
 
-    pred = 1 if risk_prob > 0.2 else 0
-    score = probability_to_score(risk_prob)
+        pred = 1 if risk_prob > 0.2 else 0
+        score = probability_to_score(risk_prob)
 
-    return jsonify({
-        'decision': 'Rejected' if pred else 'Approved',
-        'confidence': round(max(proba) * 100, 2),
-        'risk_score': round(risk_prob * 100, 2),
-        'credit_score': score,
-        'interest_rate': score_to_rate(score),
-        'risk_level': score_to_risk(score),
-        'score_label': score_to_label(score),
-        'explanations': build_explanations(X),
-        'improvements': build_improvements(raw, score),
-        'cibil_note': "Real systems use CIBIL via PAN."
-    })
+        return jsonify({
+            'decision': 'Rejected' if pred else 'Approved',
+            'confidence': round(max(proba) * 100, 2),
+            'risk_score': round(risk_prob * 100, 2),
+            'credit_score': score,
+            'interest_rate': score_to_rate(score),
+            'risk_level': score_to_risk(score),
+            'score_label': score_to_label(score),
+        })
+
+    except Exception as e:
+        return jsonify({
+            "error": str(e)
+        }), 500
 
 @app.route('/api/demo/<profile>')
 def demo(profile):
