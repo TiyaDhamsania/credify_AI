@@ -1,0 +1,15 @@
+{
+  "features": [
+    "AGE",
+    "AMT_INCOME_TOTAL",
+    "YEARS_EMPLOYED",
+    "EMPLOYMENT_TYPE",
+    "CNT_FAM_MEMBERS",
+    "CNT_CHILDREN",
+    "FLAG_OWN_REALTY"
+  ],
+  "categorical": [
+    "EMPLOYMENT_TYPE",
+    "FLAG_OWN_REALTY"
+  ]
+}

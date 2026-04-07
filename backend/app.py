@@ -10,6 +10,7 @@ import pandas as pd
 import shap
 from flask import Flask, request, jsonify
 from flask_cors import CORS
+import gdown
 
 warnings.filterwarnings('ignore')
 
@@ -18,16 +19,31 @@ BASE_DIR  = os.path.dirname(os.path.abspath(__file__))
 MODEL_DIR = os.path.join(BASE_DIR, "models")
 
 # ── Load Model ────────────────────────────────
-with open(os.path.join(MODEL_DIR, 'model.pkl'), 'rb') as f:
+# ---------- DOWNLOAD FUNCTION ----------
+def download_file(url, output):
+    if not os.path.exists(output):
+        print(f"Downloading {output}...")
+        gdown.download(url, output, quiet=False)
+
+# ---------- YOUR GOOGLE DRIVE LINKS ----------
+MODEL_URL = "https://drive.google.com/uc?id=1RoookuCExsJLhKNjqN-hmW0_exbvSZd9"
+ENCODER_URL = "https://drive.google.com/uc?id=1zHXsIPmqvPRV599RtbKHEygkF0Ct49L"
+FEATURE_URL = "https://drive.google.com/uc?id=19fcQrQKwMiCRUA-B_bCaTCtwRLwdObVA"
+
+# ---------- DOWNLOAD FILES ----------
+download_file(MODEL_URL, "model.pkl")
+download_file(ENCODER_URL, "label_encoders.pkl")
+download_file(FEATURE_URL, "feature_columns.pkl")
+
+# ---------- LOAD FILES ----------
+with open("model.pkl", "rb") as f:
     MODEL = pickle.load(f)
 
-with open(os.path.join(MODEL_DIR, 'feature_columns.pkl'), 'rb') as f:
-    FEATURES = pickle.load(f)
+with open("label_encoders.pkl", "rb") as f:
+    label_encoders = pickle.load(f)
 
-with open(os.path.join(MODEL_DIR, 'label_encoders.pkl'), 'rb') as f:
-    LE_MAP = pickle.load(f)
-
-EXPLAINER = shap.TreeExplainer(MODEL)
+with open("feature_columns.pkl", "rb") as f:
+    feature_columns = pickle.load(f)
 
 # ── Flask ─────────────────────────────────────
 app = Flask(__name__)
