@@ -1,5 +1,5 @@
 """
-Credify AI — Flask Backend (FIXED VERSION)
+Credify AI — Flask Backend (FINAL FIXED VERSION)
 """
 
 import os
@@ -8,34 +8,32 @@ import warnings
 import numpy as np
 import pandas as pd
 import shap
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, render_template
 from flask_cors import CORS
 import gdown
 
 warnings.filterwarnings('ignore')
 
 # ── Paths ─────────────────────────────────────
-BASE_DIR  = os.path.dirname(os.path.abspath(__file__))
-MODEL_DIR = os.path.join(BASE_DIR, "models")
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
-# ── Load Model ────────────────────────────────
-# ---------- DOWNLOAD FUNCTION ----------
+# ── Download function ─────────────────────────
 def download_file(url, output):
     if not os.path.exists(output):
         print(f"Downloading {output}...")
         gdown.download(url, output, quiet=False)
 
-# ---------- YOUR GOOGLE DRIVE LINKS ----------
+# ── Google Drive URLs ─────────────────────────
 MODEL_URL = "https://drive.google.com/uc?id=1RoookuCExsJLhKNjqN-hmW0_exbvSZd9"
 ENCODER_URL = "https://drive.google.com/uc?id=1zHXsIPmqvPRV599RtbKHEygkF0Ct49L"
 FEATURE_URL = "https://drive.google.com/uc?id=19fcQrQKwMiCRUA-B_bCaTCtwRLwdObVA"
 
-# ---------- DOWNLOAD FILES ----------
+# ── Download files ────────────────────────────
 download_file(MODEL_URL, "model.pkl")
 download_file(ENCODER_URL, "label_encoders.pkl")
 download_file(FEATURE_URL, "feature_columns.pkl")
 
-# ---------- LOAD FILES ----------
+# ── Load files ────────────────────────────────
 with open("model.pkl", "rb") as f:
     MODEL = pickle.load(f)
 
@@ -45,9 +43,19 @@ with open("label_encoders.pkl", "rb") as f:
 with open("feature_columns.pkl", "rb") as f:
     feature_columns = pickle.load(f)
 
+# 🔥 FIXED VARIABLES
+FEATURES = feature_columns
+LE_MAP = label_encoders
+
+# 🔥 SHAP EXPLAINER
+try:
+    EXPLAINER = shap.Explainer(MODEL)
+except:
+    EXPLAINER = None
+
 # ── Flask ─────────────────────────────────────
 app = Flask(__name__)
-CORS(app, resources={r"/api/*": {"origins": "*"}})
+CORS(app)
 
 # ── Demo Profiles ─────────────────────────────
 DEMO_PROFILES = {
@@ -74,11 +82,12 @@ DEMO_PROFILES = {
 # ── Encode Input ──────────────────────────────
 def encode_input(raw):
     row = {}
+
     for feat in FEATURES:
         val = raw.get(feat)
 
         if feat in LE_MAP:
-            val = int(LE_MAP[feat].transform([str(val)])[0])
+            val = LE_MAP[feat].transform([str(val)])[0]
         else:
             val = float(val)
 
@@ -86,25 +95,21 @@ def encode_input(raw):
 
     return np.array([[row[f] for f in FEATURES]])
 
-# ── SHAP (SAFE) ──────────────────────────────
+# ── SHAP Explanation ──────────────────────────
 def build_explanations(X):
+    if EXPLAINER is None:
+        return [{"feature": "N/A", "text": "Explanation unavailable", "impact": "low", "direction": "neutral"}]
+
     try:
         row_df = pd.DataFrame(X, columns=FEATURES)
-        shap_values = EXPLAINER.shap_values(row_df)
+        shap_values = EXPLAINER(row_df)
 
-        if isinstance(shap_values, list):
-            sv = shap_values[1][0]
-        else:
-            sv = shap_values[0]
+        sv = shap_values.values[0]
 
         results = []
-        for i, feat in enumerate(FEATURES):
-            val = sv[i]
-            if not np.isscalar(val):
-                val = np.array(val).flatten()[0]
-
-            shap_val = float(val)
-            bad = shap_val > 0
+        for i, feat in enumerate(FEATURES[:5]):
+            val = float(sv[i])
+            bad = val > 0
 
             results.append({
                 'feature': feat,
@@ -113,15 +118,13 @@ def build_explanations(X):
                 'direction': 'negative' if bad else 'positive'
             })
 
-        return results[:5]
+        return results
 
     except Exception as e:
         print("SHAP ERROR:", e)
-        return [
-            {"feature": "income", "text": "Income affects approval", "impact": "medium", "direction": "positive"}
-        ]
+        return [{"feature": "N/A", "text": "Explanation failed", "impact": "low", "direction": "neutral"}]
 
-# ── Improvements (FIXED) ─────────────────────
+# ── Improvements ─────────────────────────────
 def build_improvements(raw, score):
     tips = []
 
@@ -166,9 +169,9 @@ def score_to_risk(score):
 
 # ── Routes ───────────────────────────────────
 
-@app.route('/')
+@app.route("/")
 def home():
-    return "Credify AI API Running 🚀"
+    return render_template("index.html")
 
 @app.route('/api/health')
 def health():
@@ -226,7 +229,7 @@ def demo(profile):
         'cibil_note': "Real systems use CIBIL via PAN."
     })
 
+# ── Run ──────────────────────────────────────
 if __name__ == "__main__":
-    import os
     port = int(os.environ.get("PORT", 10000))
     app.run(host="0.0.0.0", port=port)
