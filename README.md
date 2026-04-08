@@ -31,11 +31,6 @@ It combines:
 ✔ Fully deployed web application
 
 
-
-### 🔹 SHAP Explanation & Recommendations
-![Explanation](<img width="833" height="767" alt="Screenshot 2026-04-09 033321" src="https://github.com/user-attachments/assets/78448266-bc73-4fa3-8b28-3dd02b700e4b" />
-)
-
 ## 🧠 Tech Stack
 
 ### 🔹 Machine Learning
