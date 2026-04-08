@@ -30,17 +30,7 @@ It combines:
 ✔ Demo profiles for testing
 ✔ Fully deployed web application
 
----
-## 📸 Screenshots
 
-### 🔹 Input Form
-
-![Input Form](https://github.com/user-attachments/assets/e9b37983-c597-40a1-bbc8-afd93a6...)
-
-
-### 🔹 Prediction Output
-![Prediction Output](<img width="825" height="953" alt="Screenshot 2026-04-09 032121" src="https://github.com/user-attachments/assets/58afc23d-9e4a-4582-b8ae-cfb5ff90ee5f" />
-)
 
 ### 🔹 SHAP Explanation & Recommendations
 ![Explanation](<img width="833" height="767" alt="Screenshot 2026-04-09 033321" src="https://github.com/user-attachments/assets/78448266-bc73-4fa3-8b28-3dd02b700e4b" />
