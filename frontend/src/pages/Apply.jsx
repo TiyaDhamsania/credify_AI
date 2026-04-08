@@ -8,11 +8,13 @@ import ProgressBar from '../components/ProgressBar'
 const DEMO_GOOD = {
   AGE: '38', AMT_INCOME_TOTAL: '270000',
   YEARS_EMPLOYED: '9.5', EMPLOYMENT_TYPE: 'Salaried',
+  FLAG_OWN_REALTY: 'Y',
   CNT_FAM_MEMBERS: '3', CNT_CHILDREN: '1',
 }
 const DEMO_RISKY = {
   AGE: '24', AMT_INCOME_TOTAL: '67500',
   YEARS_EMPLOYED: '0.5', EMPLOYMENT_TYPE: 'Other',
+  FLAG_OWN_REALTY: 'N',
   CNT_FAM_MEMBERS: '5', CNT_CHILDREN: '3',
 }
 
@@ -147,6 +149,26 @@ function Step3({ data, onChange, errors }) {
   return (
     <div className="space-y-6">
       <Field
+        label="Do you own a property?"
+        hint="House, flat, or any real estate in your name"
+        error={errors.FLAG_OWN_REALTY}
+      >
+        <div className="relative">
+          <select
+            name="FLAG_OWN_REALTY"
+            value={data.FLAG_OWN_REALTY}
+            onChange={onChange}
+            className="select-field pr-10"
+          >
+            <option value="">Select…</option>
+            <option value="Y">Yes — I own a house / flat</option>
+            <option value="N">No — I don&apos;t own property</option>
+          </select>
+          <span className="absolute right-4 top-1/2 -translate-y-1/2 text-text-muted pointer-events-none text-xs">▼</span>
+        </div>
+      </Field>
+
+      <Field
         label="Total Family Members"
         hint="Everyone living in your household including yourself, spouse, children, parents"
         error={errors.CNT_FAM_MEMBERS}
@@ -194,6 +216,7 @@ function Step4({ data }) {
     AMT_INCOME_TOTAL: ['Annual Income',       v => `₹${Number(v).toLocaleString('en-IN')}`],
     EMPLOYMENT_TYPE:  ['Employment Type',     v => v],
     YEARS_EMPLOYED:   ['Years Employed',      v => `${v} years`],
+    FLAG_OWN_REALTY:  ['Owns property',       v => (v === 'Y' ? 'Yes' : v === 'N' ? 'No' : '—')],
     CNT_FAM_MEMBERS:  ['Family Members',      v => `${v} people`],
     CNT_CHILDREN:     ['Dependent Children',  v => v === '0' || v === 0 ? 'None' : v],
   }
@@ -243,6 +266,7 @@ const VALIDATORS = [
     YEARS_EMPLOYED:  d.YEARS_EMPLOYED === '' ? 'Please enter years employed (enter 0 if new job)' : '',
   }),
   (d) => ({
+    FLAG_OWN_REALTY: !d.FLAG_OWN_REALTY ? 'Please select whether you own property' : '',
     CNT_FAM_MEMBERS: (!d.CNT_FAM_MEMBERS || Number(d.CNT_FAM_MEMBERS) < 1) ? 'Please enter total family members (minimum 1 — yourself)' : '',
     CNT_CHILDREN:    d.CNT_CHILDREN === '' ? 'Please enter number of children (enter 0 if none)'                                         : '',
   }),
@@ -252,6 +276,7 @@ const VALIDATORS = [
 const INITIAL = {
   AGE: '', AMT_INCOME_TOTAL: '',
   EMPLOYMENT_TYPE: '', YEARS_EMPLOYED: '',
+  FLAG_OWN_REALTY: '',
   CNT_FAM_MEMBERS: '', CNT_CHILDREN: '',
 }
 
@@ -295,6 +320,7 @@ export default function Apply() {
       AMT_INCOME_TOTAL: Number(data.AMT_INCOME_TOTAL),
       YEARS_EMPLOYED:  Number(data.YEARS_EMPLOYED),
       EMPLOYMENT_TYPE: data.EMPLOYMENT_TYPE,
+      FLAG_OWN_REALTY: data.FLAG_OWN_REALTY,
       CNT_FAM_MEMBERS: Number(data.CNT_FAM_MEMBERS),
       CNT_CHILDREN:    Number(data.CNT_CHILDREN),
     }

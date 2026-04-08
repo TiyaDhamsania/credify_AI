@@ -3,6 +3,7 @@ flask-cors
 numpy
 pandas
 scikit-learn
+imbalanced-learn
 shap
 gunicorn
 gdown

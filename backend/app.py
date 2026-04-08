@@ -3,10 +3,10 @@ Credify AI — Flask Backend (FINAL FIXED VERSION)
 """
 
 import os
+import json
 import pickle
 import warnings
 import numpy as np
-import pandas as pd
 import shap
 from flask import Flask, request, jsonify, render_template
 from flask_cors import CORS
@@ -18,40 +18,91 @@ warnings.filterwarnings('ignore')
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 # ── Download function ─────────────────────────
-def download_file(url, output):
-    if not os.path.exists(output):
-        print(f"Downloading {output}...")
-        gdown.download(url, output, quiet=False)
+def _is_git_lfs_pointer(path: str) -> bool:
+    try:
+        with open(path, "rb") as f:
+            head = f.read(64)
+        return head.startswith(b"version https://git-lfs.github.com/spec/v1")
+    except OSError:
+        return False
+
+
+def _ensure_artifact(filename: str, url: str) -> str:
+    """
+    Prefer real artifacts next to this file. If missing/invalid (or a Git LFS pointer),
+    try ../models/<filename> from `train_model.py`, then download from Google Drive.
+    """
+    local = os.path.join(BASE_DIR, filename)
+    fallback = os.path.join(os.path.dirname(BASE_DIR), "models", filename)
+
+    if os.path.exists(local) and not _is_git_lfs_pointer(local):
+        return local
+
+    if os.path.exists(fallback) and not _is_git_lfs_pointer(fallback):
+        print(f"Using trained artifact: {fallback}")
+        return fallback
+
+    if not os.path.exists(local) or _is_git_lfs_pointer(local):
+        print(f"Downloading {filename}...")
+        gdown.download(url, local, quiet=False)
+
+    return local
+
 
 # ── Google Drive URLs ─────────────────────────
 MODEL_URL = "https://drive.google.com/uc?id=1RoookuCExsJLhKNjqN-hmW0_exbvSZd9"
 ENCODER_URL = "https://drive.google.com/uc?id=1zHXsIPmqvPRV599RtbKHEygkF0Ct49L"
-FEATURE_URL = "https://drive.google.com/uc?id=19fcQrQKwMiCRUA-B_bCaTCtwRLwdObVA"
-
-# ── Download files ────────────────────────────
-download_file(MODEL_URL, "model.pkl")
-download_file(ENCODER_URL, "label_encoders.pkl")
-download_file(FEATURE_URL, "feature_columns.pkl")
+# ── Resolve artifacts (local-first; avoids Drive when trained files exist) ──
+MODEL_PATH = _ensure_artifact("model.pkl", MODEL_URL)
+ENCODER_PATH = _ensure_artifact("label_encoders.pkl", ENCODER_URL)
 
 # ── Load files ────────────────────────────────
-with open("model.pkl", "rb") as f:
+with open(MODEL_PATH, "rb") as f:
     MODEL = pickle.load(f)
 
-with open("label_encoders.pkl", "rb") as f:
+with open(ENCODER_PATH, "rb") as f:
     label_encoders = pickle.load(f)
 
-with open("feature_columns.pkl", "rb") as f:
-    feature_columns = pickle.load(f)
+# Order must match train_model.py / the estimator (Drive `feature_columns.pkl` can be stale).
+FEATURE_META_PATH = os.path.join(BASE_DIR, "models", "feature_meta.json")
+with open(FEATURE_META_PATH, "r", encoding="utf-8") as f:
+    _feature_meta = json.load(f)
+FEATURES = _feature_meta["features"]
 
-# 🔥 FIXED VARIABLES
-FEATURES = feature_columns
+_n_in = getattr(MODEL, "n_features_in_", None)
+if _n_in is not None and len(FEATURES) != _n_in:
+    raise RuntimeError(
+        f"feature_meta.json has {len(FEATURES)} features but model expects {_n_in}. "
+        "Update models/feature_meta.json or re-run train_model.py."
+    )
+
 LE_MAP = label_encoders
 
-# 🔥 SHAP EXPLAINER
+_INPUT_DEFAULTS = {
+    "FLAG_OWN_REALTY": "N",
+    "EMPLOYMENT_TYPE": "Other",
+}
+
+# TreeExplainer is correct for sklearn RandomForest; generic Explainer returns
+# shape (1, n_features, 2) for binary classifiers — indexing [0] alone breaks float(sv[i]).
 try:
-    EXPLAINER = shap.Explainer(MODEL)
-except:
+    EXPLAINER = shap.TreeExplainer(MODEL)
+except Exception:
     EXPLAINER = None
+
+
+def _shap_values_row_positive_class(shap_out):
+    """Return 1D SHAP contributions toward the positive (risk/default) class."""
+    if isinstance(shap_out, list):
+        # Binary: [class0, class1] each (n_samples, n_features)
+        return np.asarray(shap_out[1][0], dtype=np.float64)
+    arr = np.asarray(shap_out)
+    if arr.ndim == 3:
+        # (n_samples, n_features, n_classes) — use class 1 (default / positive risk)
+        return arr[0, :, 1].astype(np.float64)
+    if arr.ndim == 2:
+        return arr[0].astype(np.float64)
+    return arr.ravel().astype(np.float64)
 
 # ── Flask ─────────────────────────────────────
 app = Flask(__name__)
@@ -85,6 +136,10 @@ def encode_input(raw):
 
     for feat in FEATURES:
         val = raw.get(feat)
+        if val is None or (isinstance(val, str) and val.strip() == ""):
+            val = _INPUT_DEFAULTS.get(feat)
+        if val is None:
+            raise ValueError(f"Missing required field: {feat}")
 
         if feat in LE_MAP:
             val = LE_MAP[feat].transform([str(val)])[0]
@@ -101,13 +156,16 @@ def build_explanations(X):
         return [{"feature": "N/A", "text": "Explanation unavailable", "impact": "low", "direction": "neutral"}]
 
     try:
-        row_df = pd.DataFrame(X, columns=FEATURES)
-        shap_values = EXPLAINER(row_df)
+        X_arr = np.asarray(X, dtype=np.float64)
+        shap_raw = EXPLAINER.shap_values(X_arr)
+        sv = _shap_values_row_positive_class(shap_raw)
 
-        sv = shap_values.values[0]
+        # Top factors by absolute impact (up to 5)
+        order = np.argsort(np.abs(sv))[::-1][: min(5, len(sv))]
 
         results = []
-        for i, feat in enumerate(FEATURES[:5]):
+        for i in order:
+            feat = FEATURES[i]
             val = float(sv[i])
             bad = val > 0
 

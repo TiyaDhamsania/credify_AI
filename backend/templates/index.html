@@ -828,7 +828,7 @@ async function loadDemo(profile) {
   setLoading(true);
   showError('');
   try {
-    const r = await fetch('/api/demo/${profile}');
+    const r = await fetch(`/api/demo/${profile}`);
     const data = await r.json();
     if (!r.ok) throw new Error(data.error || 'Demo failed');
 
